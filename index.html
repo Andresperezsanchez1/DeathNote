@@ -1,0 +1,1344 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Death Note: Sombras de Kira</title>
+<style>
+:root{
+ --bg:#090d15;--panel:#151e2c;--panel2:#202d40;
+ --text:#edf2fa;--muted:#9aa9bc;--gold:#e7bd62;
+ --red:#e15c68;--green:#5ac69a;--blue:#69a9ed;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
+button,select{font:inherit}
+button{cursor:pointer;border:1px solid #39465c;background:#26344a;color:white;border-radius:9px;padding:11px 14px}
+button:hover{filter:brightness(1.15)}
+button:disabled{opacity:.4;cursor:not-allowed}
+.primary{background:#80612d;border-color:var(--gold)}
+.danger{background:#71323b;border-color:#a94c57}
+.green{background:#205b49;border-color:#39876b}
+.muted{color:var(--muted)}
+.small{font-size:12px}
+header{padding:14px 16px;background:#111927;border-bottom:1px solid #29364b;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+header h1{font-size:18px;margin:0}
+#app{max-width:1250px;margin:auto;padding:14px}
+.panel{background:var(--panel);border:1px solid #29374c;border-radius:13px;padding:15px;margin-bottom:13px}
+h2{font-size:19px;margin:0 0 12px}
+h3{font-size:15px;margin:0 0 9px}
+.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.stat{background:#101827;border:1px solid #29374c;border-radius:9px;padding:10px}
+.stat b{display:block;color:var(--gold);font-size:19px;margin-top:4px}
+#game{display:none}
+#map{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.room{background:#202b3d;border:1px solid #3b4c65;border-radius:10px;padding:12px 6px;min-height:95px;text-align:center}
+.room.selected{border:2px solid var(--gold)}
+.room strong{font-size:12px;display:block;margin-bottom:8px}
+.occupants{display:flex;justify-content:center;gap:5px;flex-wrap:wrap}
+.person{display:inline-flex;align-items:center;justify-content:center;background:#344c6c;border:1px solid #6683a9;border-radius:7px;width:27px;height:27px;font-weight:bold;font-size:12px}
+.person.player{background:#80612d;border-color:var(--gold)}
+.person.dead{opacity:.25;text-decoration:line-through}
+#people{display:grid;grid-template-columns:repeat(auto-fit,minmax(75px,1fr));gap:7px}
+.person-card{padding:9px;background:#101827;border:1px solid #34445d;border-radius:9px;text-align:center}
+.person-card.dead{opacity:.4}
+.person-card .number{font-size:24px;font-weight:bold}
+.person-card small{display:block;color:var(--muted);margin-top:4px}
+.task{padding:9px;background:#101827;border:1px solid #34445d;border-radius:8px;margin-bottom:7px}
+progress{width:100%;height:8px;accent-color:var(--green)}
+select{background:#101827;color:white;border:1px solid #394b65;padding:10px;border-radius:8px;max-width:100%}
+#log{height:180px;overflow:auto;background:#0d1420;padding:10px;border-radius:8px;font-size:12px;line-height:1.6}
+.logline{border-bottom:1px solid #1c2839;padding:4px 0}
+#meeting{display:none;position:fixed;inset:0;z-index:20;background:#080c13ed;overflow:auto;padding:12px}
+.meeting-inner{max-width:760px;margin:20px auto;background:#151d2b;border:1px solid #45536b;border-radius:14px;padding:17px}
+#roleReveal{display:none;position:fixed;inset:0;z-index:30;background:#080c13;align-items:center;justify-content:center;padding:20px}
+.role-card{max-width:440px;text-align:center;background:#151d2b;border:1px solid #46536b;border-radius:16px;padding:30px;width:100%}
+.role-card h2{font-size:30px;color:var(--gold)}
+#notice{position:fixed;bottom:15px;left:50%;transform:translateX(-50%);background:#27364b;border:1px solid #60718b;border-radius:10px;padding:12px;display:none;z-index:50;max-width:90%;text-align:center}
+.badge{display:inline-block;border-radius:6px;padding:4px 7px;background:#29384e;font-size:11px}
+#turnMessage{color:var(--gold);font-size:12px;margin-top:8px}
+@media(max-width:600px){
+ #map{grid-template-columns:repeat(2,1fr)}
+ header h1{font-size:15px}
+ #app{padding:9px}
+ .panel{padding:12px}
+ button{padding:10px;font-size:13px}
+}
+</style>
+</head>
+<body>
+<header>
+ <h1>☠ DEATH NOTE: SOMBRAS DE KIRA</h1>
+ <div class="small muted">10 PERSONAJES · IDENTIDADES SECRETAS</div>
+</header>
+
+<div id="app">
+ <section id="setup" class="panel">
+  <h2>La investigación comienza</h2>
+  <p class="muted">Diez personajes comparten un edificio. Uno es Kira, otro es L. Los demás deberán descubrir la verdad.</p>
+  <div class="stat">
+   <span class="muted small">DISTRIBUCIÓN SECRETA</span>
+   <b>1 Kira · 1 L · 8 investigadores</b>
+  </div>
+  <p class="small muted">Tu personaje será siempre el número 1. Tu rol se asignará aleatoriamente al comenzar cada partida.</p>
+  <button class="primary" onclick="startGame()">🎲 COMENZAR PARTIDA</button>
+ </section>
+
+ <section id="game">
+  <div class="panel">
+   <div class="row" style="justify-content:space-between">
+    <div><span class="muted small">TU PERSONAJE</span><h2>PERSONAJE 1</h2></div>
+    <div class="stat">DÍA <b id="day">1</b></div>
+    <div class="stat">ACCIONES <b id="actions">3</b></div>
+    <div class="stat">VIVOS <b id="aliveCount">10</b></div>
+   </div>
+   <div id="objective" class="stat"></div>
+   <div id="turnMessage">Tu turno está activo.</div>
+  </div>
+
+  <div class="grid">
+   <div class="panel">
+    <h2>🏢 Edificio</h2>
+    <p class="muted small">Selecciona una habitación para desplazarte. Tu personaje también cambia de ubicación automáticamente al terminar cada turno.</p>
+    <div id="map"></div>
+    <p class="small">Ubicación actual: <b id="myRoom">-</b></p>
+    <p class="small muted" id="movementInfo"></p>
+   </div>
+   <div class="panel">
+    <h2>👥 Personajes</h2>
+    <div id="people"></div>
+    <p class="muted small">Las identidades no se muestran hasta el final.</p>
+   </div>
+  </div>
+
+  <div class="grid">
+   <div class="panel">
+    <h2>📋 Tus tareas</h2>
+    <div id="tasks"></div>
+   </div>
+   <div class="panel">
+    <h2>🎮 Acciones</h2>
+    <div class="row">
+     <button onclick="doTask()">Completar tarea</button>
+     <button onclick="investigate()">Investigar habitación</button>
+     <button onclick="observe()">Observar personajes</button>
+     <button class="primary" onclick="callMeeting()">📢 Convocar reunión</button>
+     <button class="green" onclick="endTurn()">⏭ TERMINAR TURNO</button>
+    </div>
+    <hr style="border-color:#29374c;margin:14px 0">
+    <h3>Acciones especiales</h3>
+    <div class="row">
+     <select id="targetPerson"></select>
+     <button onclick="interrogate()">Interrogar</button>
+     <button class="danger" onclick="attemptMurder()">Acción de Kira</button>
+    </div>
+    <p class="muted small">Las acciones especiales dependen de tu rol y ubicación.</p>
+   </div>
+  </div>
+
+  <div class="panel">
+   <h2>🧠 Registro de acontecimientos</h2>
+   <div id="log"></div>
+  </div>
+  <div class="panel">
+   <h2>📁 Pruebas personales</h2>
+   <div id="evidenceList" class="muted small">Todavía no tienes pruebas.</div>
+  </div>
+ </section>
+</div>
+
+<div id="roleReveal">
+ <div class="role-card">
+  <div style="font-size:45px">🎭</div>
+  <p class="muted">IDENTIDAD SECRETA</p>
+  <h2 id="roleName"></h2>
+  <h3>PERSONAJE 1</h3>
+  <p id="roleDescription"></p>
+  <button class="primary" onclick="closeRoleReveal()">ENTRAR EN LA PARTIDA</button>
+ </div>
+</div>
+
+<div id="meeting">
+ <div class="meeting-inner">
+  <div class="row" style="justify-content:space-between">
+   <h2>📢 REUNIÓN DE INVESTIGACIÓN</h2>
+   <button onclick="closeMeeting()">Cerrar reunión</button>
+  </div>
+  <p class="muted small">Los personajes solo pueden declarar lo que han observado personalmente. Pueden equivocarse, mentir o no recordar.</p>
+  <div class="panel">
+   <h3>Testimonios</h3>
+   <div id="testimonies"></div>
+  </div>
+  <div class="panel">
+   <h3>Presentar una prueba</h3>
+   <select id="proofSelect" style="width:100%"></select><br><br>
+   <button class="primary" onclick="presentEvidence()">Presentar prueba al grupo</button>
+   <div id="proofFeedback" class="small muted"></div>
+  </div>
+  <div class="panel">
+   <h3>Interrogar a un personaje</h3>
+   <div class="row">
+    <select id="meetingTarget"></select>
+    <button onclick="meetingQuestion()">Preguntar dónde estaba</button>
+   </div>
+   <div id="answer" class="small" style="margin-top:10px"></div>
+  </div>
+  <div class="panel">
+   <h3>Acusar a un sospechoso</h3>
+   <div class="row">
+    <select id="accuseTarget"></select>
+    <button class="danger" onclick="accuse()">Presentar acusación</button>
+   </div>
+   <div id="accusationResult" class="small" style="margin-top:10px"></div>
+  </div>
+  <div class="panel">
+   <h3>Votación</h3>
+   <div class="row">
+    <select id="voteTarget"></select>
+    <button class="primary" onclick="vote()">Votar expulsión</button>
+    <button onclick="abstain()">Abstenerse</button>
+   </div>
+   <div id="voteResult" class="small" style="margin-top:10px"></div>
+  </div>
+ </div>
+</div>
+<div id="notice"></div>
+
+<script>
+"use strict";
+
+const ROOMS=[
+ {id:"office",name:"Despacho"},
+ {id:"library",name:"Biblioteca"},
+ {id:"cafeteria",name:"Cafetería"},
+ {id:"lab",name:"Laboratorio"},
+ {id:"meeting",name:"Sala de reuniones"},
+ {id:"archive",name:"Archivo"},
+ {id:"hall",name:"Pasillo"},
+ {id:"security",name:"Seguridad"}
+];
+
+const TASKS=[
+ {id:"generator",name:"Reparar generador",room:"security",steps:3},
+ {id:"documents",name:"Clasificar documentos",room:"archive",steps:3},
+ {id:"samples",name:"Analizar muestras",room:"lab",steps:3},
+ {id:"books",name:"Ordenar libros",room:"library",steps:2},
+ {id:"supplies",name:"Preparar suministros",room:"cafeteria",steps:2},
+ {id:"cameras",name:"Revisar cámaras",room:"security",steps:3},
+ {id:"files",name:"Actualizar expedientes",room:"office",steps:2},
+ {id:"room",name:"Preparar sala",room:"meeting",steps:2},
+ {id:"lights",name:"Revisar iluminación",room:"hall",steps:2}
+];
+
+const PERSONALITIES=[
+ "analítico","reservado","nervioso","observador","desconfiado",
+ "tranquilo","impulsivo","metódico","inseguro","persuasivo"
+];
+
+let G=null;
+const $=id=>document.getElementById(id);
+const rand=a=>a[Math.floor(Math.random()*a.length)];
+const shuffle=a=>[...a].sort(()=>Math.random()-.5);
+const person=id=>G.people.find(p=>p.id===String(id));
+const currentPlayer=()=>person("1");
+const alive=()=>G.people.filter(p=>p.alive);
+const roomName=id=>ROOMS.find(r=>r.id===id)?.name||id;
+const occupants=id=>alive().filter(p=>p.room===id);
+const taskData=id=>TASKS.find(t=>t.id===id);
+
+function notify(msg){
+ const n=$("notice");
+ n.textContent=msg;
+ n.style.display="block";
+ clearTimeout(notify.timer);
+ notify.timer=setTimeout(()=>n.style.display="none",2500);
+}
+
+function escapeHTML(s){
+ return String(s).replace(/[&<>"']/g,c=>({
+  "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+ }[c]));
+}
+
+function addLog(msg){
+ if(!G)return;
+ G.log.unshift("Día "+G.day+" · "+msg);
+ if(G.log.length>120)G.log.length=120;
+ renderLog();
+}
+
+function remember(p,event){
+ if(!p)return;
+ p.memory.push({...event,day:G.day,tick:G.tick});
+ if(p.memory.length>120)p.memory.shift();
+}
+
+function recordLocation(p){
+ p.trace.push({day:G.day,tick:G.tick,room:p.room});
+ if(p.trace.length>120)p.trace.shift();
+}
+
+function addEvidence(owner,title,detail,kind="observation",data={}){
+ const e={
+  id:"E"+(++G.evidenceCounter),
+  owner:String(owner),title,detail,kind,data,
+  day:G.day,tick:G.tick
+ };
+ G.evidence.push(e);
+ if(String(owner)==="1")notify("Nueva prueba: "+title);
+ return e;
+}
+
+function startGame(){
+ const people=[];
+
+ for(let i=1;i<=10;i++){
+  people.push({
+   id:String(i),
+   alive:true,
+   room:rand(ROOMS).id,
+   role:"investigator",
+   personality:PERSONALITIES[i-1],
+   memory:[],
+   trace:[],
+   claims:[],
+   suspicion:{},
+   trust:{},
+   tasks:[],
+   completedTasks:[],
+   currentGoal:null,
+   lastRoom:null,
+   lastAction:""
+  });
+ }
+
+ // Asignación aleatoria de roles.
+ const shuffled=shuffle(people);
+ shuffled[0].role="Kira";
+ shuffled[1].role="L";
+
+ G={
+  people,
+  day:1,
+  tick:0,
+  actions:3,
+  gameOver:false,
+  meetingActive:false,
+  meetingResolved:false,
+  meetingCalledToday:false,
+  meetingEvidence:[],
+  meetingTestimonies:[],
+  meetingClaims:[],
+  votes:{},
+  evidence:[],
+  evidenceCounter:0,
+  corpses:[],
+  log:[],
+  kiraId:shuffled[0].id,
+  lId:shuffled[1].id,
+  lastDeath:null,
+  presented:[],
+  playerAccusation:null,
+  hasVoted:false,
+  turnProcessing:false,
+  phase:"player",
+  npcWitnesses:[],
+  cameraRecords:[],
+  playerLastRoom:null
+ };
+
+ people.forEach(p=>{
+  p.tasks=shuffle(TASKS).slice(0,3).map(t=>({
+   id:t.id,progress:0,done:false
+  }));
+  people.forEach(other=>{
+   if(other.id!==p.id){
+    p.suspicion[other.id]=0;
+    p.trust[other.id]=50;
+   }
+  });
+  p.lastRoom=p.room;
+  recordLocation(p);
+ });
+
+ $("setup").style.display="none";
+ $("game").style.display="block";
+
+ const me=currentPlayer();
+ $("roleName").textContent=
+  me.role==="Kira"?"KIRA":
+  me.role==="L"?"L":"INVESTIGADOR";
+
+ $("roleDescription").textContent=
+  me.role==="Kira"?
+  "Tu misión es eliminar a L y evitar que descubran tu identidad.":
+  me.role==="L"?
+  "Tu misión es descubrir a Kira y sobrevivir.":
+  "Investiga, reúne pruebas y ayuda a expulsar a Kira.";
+
+ $("roleReveal").style.display="flex";
+
+ addLog("La partida ha comenzado. Los roles han sido asignados al azar.");
+ addLog("Los personajes han iniciado sus actividades.");
+ render();
+}
+
+function closeRoleReveal(){
+ $("roleReveal").style.display="none";
+}
+
+function render(){
+ if(!G)return;
+
+ $("day").textContent=G.day;
+ $("actions").textContent=G.actions;
+ $("aliveCount").textContent=alive().length;
+ $("myRoom").textContent=roomName(currentPlayer().room);
+
+ $("objective").textContent=
+  currentPlayer().role==="Kira"?
+  "🎭 OBJETIVO: elimina a L sin ser descubierto.":
+  currentPlayer().role==="L"?
+  "🕵️ OBJETIVO: descubre a Kira y sobrevive.":
+  "🔎 OBJETIVO: descubre y expulsa a Kira.";
+
+ $("turnMessage").textContent=
+  G.turnProcessing?"Los personajes están actuando...":
+  G.meetingActive?"Reunión en curso.":
+  "Tu turno está activo. Puedes realizar "+G.actions+" acciones.";
+
+ renderMap();
+ renderPeople();
+ renderTasks();
+ renderTargets();
+ renderEvidence();
+ renderLog();
+
+ const endButton=[...document.querySelectorAll("#game button")]
+  .find(b=>b.textContent.includes("TERMINAR TURNO"));
+ if(endButton)endButton.disabled=
+  G.gameOver||G.meetingActive||G.turnProcessing;
+}
+
+function renderMap(){
+ $("map").innerHTML="";
+
+ ROOMS.forEach(r=>{
+  const div=document.createElement("div");
+  div.className="room";
+  if(currentPlayer().room===r.id)div.classList.add("selected");
+
+  div.innerHTML=
+   "<strong>"+r.name+"</strong><div class='occupants'>"+
+   occupants(r.id).map(p=>
+    "<span class='person "+(p.id==="1"?"player":"")+"' title='Personaje "+p.id+"'>"+p.id+"</span>"
+   ).join("")+"</div>";
+
+  div.onclick=()=>moveTo(r.id);
+  $("map").appendChild(div);
+ });
+}
+
+function renderPeople(){
+ $("people").innerHTML="";
+ G.people.forEach(p=>{
+  const div=document.createElement("div");
+  div.className="person-card "+(!p.alive?"dead":"");
+  div.innerHTML=
+   "<div class='number'>"+p.id+"</div><small>"+
+   (p.alive?"Vivo":"Eliminado")+"</small>";
+  $("people").appendChild(div);
+ });
+}
+
+function renderTasks(){
+ $("tasks").innerHTML="";
+ currentPlayer().tasks.forEach(t=>{
+  const data=taskData(t.id);
+  const div=document.createElement("div");
+  div.className="task";
+  div.innerHTML=
+   "<b>"+data.name+"</b>"+
+   "<div class='small muted'>"+roomName(data.room)+" · "+
+   (t.done?"Completada":t.progress+"/"+data.steps)+"</div>"+
+   "<progress max='"+data.steps+"' value='"+t.progress+"'></progress>";
+  $("tasks").appendChild(div);
+ });
+}
+
+function renderTargets(){
+ ["targetPerson","meetingTarget","accuseTarget","voteTarget"].forEach(id=>{
+  const s=$(id);
+  if(!s)return;
+  const old=s.value;
+  s.innerHTML="";
+  alive().filter(p=>p.id!=="1").forEach(p=>{
+   s.add(new Option("PERSONAJE "+p.id,p.id));
+  });
+  if([...s.options].some(o=>o.value===old))s.value=old;
+ });
+}
+
+function renderEvidence(){
+ const mine=G.evidence.filter(e=>e.owner==="1");
+ $("evidenceList").innerHTML=mine.length?
+  mine.map(e=>
+   "<div class='task'><b>"+escapeHTML(e.title)+"</b>"+
+   "<div class='small muted'>"+escapeHTML(e.detail)+"</div></div>"
+  ).join(""):
+  "Todavía no tienes pruebas.";
+}
+
+function renderLog(){
+ $("log").innerHTML=G.log.map(x=>
+  "<div class='logline'>"+escapeHTML(x)+"</div>"
+ ).join("");
+}
+
+function spendAction(){
+ if(!G||G.gameOver||G.meetingActive||G.turnProcessing)return false;
+ if(G.actions<=0){
+  notify("No te quedan acciones. Termina el turno.");
+  return false;
+ }
+ G.actions--;
+ return true;
+}
+
+function moveTo(room){
+ if(currentPlayer().room===room){
+  notify("Ya estás en esa habitación.");
+  return;
+ }
+ if(!spendAction())return;
+
+ const me=currentPlayer();
+ const old=me.room;
+
+ me.room=room;
+ G.tick++;
+ me.lastRoom=old;
+ recordLocation(me);
+
+ remember(me,{
+  type:"movement",room,
+  description:"Me desplacé a "+roomName(room)
+ });
+
+ addLog("PERSONAJE 1 se desplazó a "+roomName(room)+".");
+ render();
+}
+
+function doTask(){
+ if(!spendAction())return;
+
+ const me=currentPlayer();
+ const task=me.tasks.find(t=>
+  !t.done&&taskData(t.id).room===me.room
+ );
+
+ if(!task){
+  G.actions++;
+  notify("No tienes tareas pendientes en esta habitación.");
+  return;
+ }
+
+ const data=taskData(task.id);
+ task.progress++;
+ G.tick++;
+
+ if(task.progress>=data.steps){
+  task.done=true;
+  me.completedTasks.push(task.id);
+  addLog("PERSONAJE 1 completó una tarea: "+data.name+".");
+  addEvidence(
+   "1","Tarea completada: "+data.name,
+   "Completada en "+roomName(me.room),
+   "task",{room:me.room}
+  );
+ }else{
+  addLog("PERSONAJE 1 avanzó en una tarea.");
+ }
+
+ remember(me,{
+  type:"task",room:me.room,
+  description:"Realicé una tarea en "+roomName(me.room)
+ });
+
+ render();
+}
+
+function investigate(){
+ if(!spendAction())return;
+
+ const me=currentPlayer();
+ const people=occupants(me.room).filter(p=>p.id!=="1");
+ const corpses=G.corpses.filter(c=>c.room===me.room);
+
+ G.tick++;
+
+ if(corpses.length){
+  const c=corpses[corpses.length-1];
+
+  addEvidence(
+   "1","Restos de un asesinato",
+   "Cuerpo del PERSONAJE "+c.id+" en "+roomName(me.room),
+   "body",{victim:c.id,room:me.room}
+  );
+
+  addLog("PERSONAJE 1 encontró un cuerpo.");
+  callMeeting(true);
+
+ }else if(people.length){
+  const p=rand(people);
+
+  addEvidence(
+   "1","Observación de personaje",
+   "Vi al PERSONAJE "+p.id+" en "+roomName(me.room),
+   "sighting",{target:p.id,room:me.room}
+  );
+
+  remember(me,{
+   type:"sighting",target:p.id,room:me.room,
+   description:"Vi al PERSONAJE "+p.id+" en "+roomName(me.room)
+  });
+
+  addLog("PERSONAJE 1 investigó la habitación.");
+
+ }else{
+  addEvidence(
+   "1","Habitación vacía",
+   "No había otros personajes en "+roomName(me.room),
+   "empty",{room:me.room}
+  );
+
+  addLog("PERSONAJE 1 investigó una habitación vacía.");
+ }
+
+ render();
+}
+
+function observe(){
+ if(!spendAction())return;
+
+ const me=currentPlayer();
+ const others=occupants(me.room).filter(p=>p.id!=="1");
+ G.tick++;
+
+ if(!others.length){
+  G.actions++;
+  notify("No hay nadie más en esta habitación.");
+  return;
+ }
+
+ others.forEach(p=>{
+  remember(me,{
+   type:"sighting",target:p.id,room:me.room,
+   description:"Vi al PERSONAJE "+p.id+" en "+roomName(me.room)
+  });
+ });
+
+ addEvidence(
+  "1","Observación grupal",
+  "Personajes presentes: "+others.map(p=>p.id).join(", ")+" en "+roomName(me.room),
+  "group",{targets:others.map(p=>p.id),room:me.room}
+ );
+
+ addLog("PERSONAJE 1 observó a los personajes presentes.");
+ render();
+}
+
+function interrogate(){
+ if(!spendAction())return;
+
+ const target=person($("targetPerson").value);
+ if(!target||!target.alive)return;
+
+ G.tick++;
+
+ const answer=getNPCAnswer(target);
+
+ target.claims.push({
+  speaker:target.id,day:G.day,tick:G.tick,
+  room:target.room,text:answer
+ });
+
+ remember(currentPlayer(),{
+  type:"claim",target:target.id,
+  description:"PERSONAJE "+target.id+" dijo: "+answer
+ });
+
+ addEvidence(
+  "1","Declaración del PERSONAJE "+target.id,
+  answer,"claim",{target:target.id,room:target.room}
+ );
+
+ addLog("PERSONAJE 1 interrogó al PERSONAJE "+target.id+".");
+ notify("PERSONAJE "+target.id+": "+answer);
+ render();
+}
+
+function getNPCAnswer(target){
+ const honest=target.role!=="Kira"&&Math.random()<.8;
+ if(honest)return "Estoy en "+roomName(target.room)+".";
+ if(target.role==="Kira")return rand([
+  "Estaba ocupado con mis tareas.",
+  "No recuerdo exactamente dónde estaba.",
+  "Estaba en otra habitación."
+ ]);
+ return rand([
+  "Estaba realizando mis tareas.",
+  "No recuerdo el momento exacto.",
+  "Prefiero no revelar todos mis movimientos."
+ ]);
+}
+
+function attemptMurder(){
+ const me=currentPlayer();
+
+ if(me.role!=="Kira"){
+  notify("No puedes realizar esa acción.");
+  return;
+ }
+
+ if(!spendAction())return;
+
+ const victims=occupants(me.room).filter(p=>p.id!=="1");
+
+ if(!victims.length){
+  G.actions++;
+  notify("No hay nadie contigo en esta habitación.");
+  return;
+ }
+
+ murder(rand(victims),me);
+ render();
+}
+
+function murder(victim,killer){
+ if(!victim||!victim.alive||G.gameOver)return;
+
+ const room=killer.room;
+ G.tick++;
+
+ victim.alive=false;
+
+ G.corpses.push({
+  id:victim.id,room,day:G.day,tick:G.tick
+ });
+
+ G.lastDeath={
+  victim:victim.id,room,day:G.day,tick:G.tick,
+  killer:killer.id
+ };
+
+ addLog(
+  "Se ha encontrado al PERSONAJE "+victim.id+
+  " sin vida en "+roomName(room)+"."
+ );
+
+ // Solo los presentes en la habitación pueden ser testigos.
+ G.people.filter(p=>
+  p.alive&&p.id!==killer.id&&p.room===room
+ ).forEach(w=>{
+  remember(w,{
+   type:"murderWitness",
+   target:killer.id,
+   victim:victim.id,
+   room,
+   description:"Vi al PERSONAJE "+killer.id+
+   " junto al cuerpo del PERSONAJE "+victim.id
+  });
+
+  w.suspicion[killer.id]=Math.min(
+   100,(w.suspicion[killer.id]||0)+65
+  );
+ });
+
+ if(victim.id===G.lId){
+  finish("Kira ha eliminado a L. Kira gana.");
+  return;
+ }
+
+ callMeeting(true);
+}
+
+function callMeeting(emergency=false){
+ if(G.gameOver||G.meetingActive)return;
+
+ if(!emergency){
+  if(G.meetingCalledToday){
+   notify("Ya se ha convocado una reunión hoy.");
+   return;
+  }
+  if(!spendAction())return;
+ }
+
+ G.meetingCalledToday=true;
+ openMeeting();
+}
+
+function openMeeting(){
+ G.meetingActive=true;
+ G.meetingResolved=false;
+ G.votes={};
+ G.hasVoted=false;
+ G.meetingEvidence=[...G.evidence];
+ G.meetingClaims=[];
+ G.presented=[];
+ G.playerAccusation=null;
+
+ G.meetingTestimonies=[];
+
+ G.people.filter(p=>p.alive&&p.id!=="1").forEach(p=>{
+  const memories=p.memory.filter(m=>m.day===G.day);
+  const witness=memories.filter(m=>m.type==="murderWitness");
+  const sightings=memories.filter(m=>m.type==="sighting");
+  const tasks=memories.filter(m=>m.type==="task");
+
+  let statement="No tengo información importante.";
+  let detail=null;
+
+  if(witness.length){
+   const w=witness[witness.length-1];
+   statement="Vi al PERSONAJE "+w.target+
+    " junto al cuerpo del PERSONAJE "+w.victim+".";
+   detail=w;
+  }else if(sightings.length){
+   const s=sightings[sightings.length-1];
+   statement="Vi al PERSONAJE "+s.target+
+    " en "+roomName(s.room)+".";
+   detail=s;
+  }else if(tasks.length){
+   statement="Estuve realizando mis tareas.";
+   detail=tasks[tasks.length-1];
+  }
+
+  G.meetingTestimonies.push({
+   speaker:p.id,text:statement,detail
+  });
+ });
+
+ renderMeeting();
+ $("meeting").style.display="block";
+}
+
+function renderMeeting(){
+ $("testimonies").innerHTML=G.meetingTestimonies.map(t=>
+  "<div class='task'><b>PERSONAJE "+t.speaker+
+  "</b><div>"+escapeHTML(t.text)+"</div></div>"
+ ).join("");
+
+ const ps=$("proofSelect");
+ ps.innerHTML="";
+
+ G.meetingEvidence.forEach((e,i)=>{
+  ps.add(new Option(
+   e.title+" · origen: "+(e.owner==="1"?"Tú":"PERSONAJE "+e.owner),
+   String(i)
+  ));
+ });
+
+ if(!G.meetingEvidence.length){
+  ps.add(new Option("No hay pruebas",""));
+ }
+
+ renderTargets();
+}
+
+function closeMeeting(){
+ if(G.gameOver)return;
+
+ if(G.meetingResolved){
+  $("meeting").style.display="none";
+  G.meetingActive=false;
+  return;
+ }
+
+ $("meeting").style.display="none";
+ G.meetingActive=false;
+ render();
+}
+
+function presentEvidence(){
+ const e=G.meetingEvidence[Number($("proofSelect").value)];
+
+ if(!e){
+  notify("No hay pruebas disponibles.");
+  return;
+ }
+
+ if(G.presented.includes(e.id)){
+  notify("Ya has presentado esta prueba.");
+  return;
+ }
+
+ G.presented.push(e.id);
+
+ let support=0;
+
+ alive().filter(p=>p.id!=="1").forEach(p=>{
+  let belief=.4;
+
+  if(p.personality==="analítico")belief+=.2;
+  if(p.personality==="desconfiado")belief+=.1;
+  if(e.kind==="murderWitness")belief+=.35;
+  if(e.kind==="sighting")belief+=.1;
+  if(e.kind==="claim")belief-=.1;
+
+  if(Math.random()<Math.max(.1,Math.min(.95,belief))){
+   support++;
+  }
+
+  const target=e.data?.target;
+  if(target&&p.suspicion[target]!==undefined){
+   p.suspicion[target]=Math.min(
+    100,p.suspicion[target]+(e.kind==="sighting"?7:3)
+   );
+  }
+ });
+
+ $("proofFeedback").textContent=
+  "La prueba ha sido presentada. "+support+
+  " personajes consideran que merece atención.";
+
+ addLog("PERSONAJE 1 presentó la prueba: "+e.title+".");
+}
+
+function meetingQuestion(){
+ const target=person($("meetingTarget").value);
+ if(!target)return;
+
+ const answer=getNPCAnswer(target);
+
+ const claim={
+  speaker:target.id,day:G.day,tick:G.tick,
+  room:target.room,text:answer
+ };
+
+ target.claims.push(claim);
+ G.meetingClaims.push(claim);
+
+ $("answer").textContent="PERSONAJE "+target.id+": "+answer;
+
+ addLog("Se interrogó al PERSONAJE "+target.id+".");
+}
+
+function accuse(){
+ if(G.playerAccusation){
+  notify("Ya has realizado una acusación en esta reunión.");
+  return;
+ }
+
+ const target=person($("accuseTarget").value);
+ if(!target)return;
+
+ G.playerAccusation=target.id;
+
+ let support=0,against=0;
+
+ alive().filter(p=>p.id!=="1").forEach(p=>{
+  let score=p.suspicion[target.id]||0;
+
+  if(p.memory.some(m=>
+   m.type==="murderWitness"&&m.target===target.id
+  ))score+=65;
+
+  score+=Math.min(25,G.presented.length*8);
+  score+=(Math.random()-.5)*25;
+
+  if(score>35)support++;
+  else against++;
+ });
+
+ $("accusationResult").textContent=
+  "Acusación contra PERSONAJE "+target.id+
+  ". "+support+" personajes muestran apoyo y "+
+  against+" no están convencidos.";
+
+ addLog("PERSONAJE 1 acusó al PERSONAJE "+target.id+".");
+}
+
+function npcVote(voter){
+ let best=null,bestScore=0;
+
+ alive().filter(p=>p.id!=="1").forEach(target=>{
+  let score=voter.suspicion[target.id]||0;
+
+  voter.memory.forEach(m=>{
+   if(m.type==="murderWitness"&&m.target===target.id){
+    score+=70;
+   }
+
+   if(m.type==="sighting"&&G.lastDeath&&
+      m.target===target.id&&m.room===G.lastDeath.room){
+    score+=15;
+   }
+  });
+
+  if(G.playerAccusation===target.id)score+=10;
+
+  score+=Math.random()*18;
+
+  if(score>bestScore){
+   bestScore=score;
+   best=target;
+  }
+ });
+
+ return bestScore>25&&best?best.id:"abstain";
+}
+
+function vote(){
+ if(G.meetingResolved||G.hasVoted){
+  notify("Ya has votado.");
+  return;
+ }
+
+ const chosen=$("voteTarget").value;
+
+ if(!person(chosen)?.alive){
+  notify("Selecciona un personaje.");
+  return;
+ }
+
+ G.hasVoted=true;
+ G.votes["1"]=chosen;
+ resolveVotes();
+}
+
+function abstain(){
+ if(G.meetingResolved||G.hasVoted)return;
+
+ G.hasVoted=true;
+ G.votes["1"]="abstain";
+ resolveVotes();
+}
+
+function resolveVotes(){
+ alive().filter(p=>p.id!=="1").forEach(p=>{
+  G.votes[p.id]=npcVote(p);
+ });
+
+ const tally={};
+
+ Object.values(G.votes).forEach(v=>{
+  if(v!=="abstain"){
+   tally[v]=(tally[v]||0)+1;
+  }
+ });
+
+ const sorted=Object.entries(tally).sort((a,b)=>b[1]-a[1]);
+ let result="La votación termina sin expulsión.";
+
+ if(sorted.length&&(!sorted[1]||sorted[0][1]>sorted[1][1])){
+  const expelled=person(sorted[0][0]);
+  expelled.alive=false;
+
+  result="PERSONAJE "+expelled.id+
+   " ha sido expulsado con "+sorted[0][1]+" votos.";
+
+  if(expelled.id===G.kiraId){
+   G.meetingResolved=true;
+   finish("Kira ha sido expulsado. Los investigadores ganan.");
+   return;
+  }
+
+  if(expelled.id===G.lId){
+   G.meetingResolved=true;
+   finish("L ha sido expulsado. Kira gana.");
+   return;
+  }
+
+  addLog(result);
+ }else{
+  addLog("La votación ha terminado en empate.");
+ }
+
+ G.meetingResolved=true;
+ $("voteResult").textContent=result;
+
+ setTimeout(()=>{
+  if(G.gameOver)return;
+  $("meeting").style.display="none";
+  G.meetingActive=false;
+  nextDay();
+ },1500);
+}
+
+/* MOVIMIENTO E INTELIGENCIA DE LOS NPC */
+
+function chooseNPCRoom(p){
+ const possible=ROOMS.filter(r=>r.id!==p.room);
+ const pending=p.tasks.find(t=>!t.done);
+
+ // Prioridad: acercarse a una tarea pendiente.
+ if(pending&&Math.random()<.65){
+  return taskData(pending.id).room;
+ }
+
+ // Algunos personajes buscan compañía.
+ if(Math.random()<.35){
+  const others=alive().filter(x=>x.id!==p.id);
+  if(others.length){
+   const selected=rand(others);
+   if(Math.random()<.6)return selected.room;
+  }
+ }
+
+ // Cambios de habitación para evitar que los NPC se queden quietos.
+ return rand(possible).id;
+}
+
+function npcMove(p){
+ if(!p.alive)return;
+
+ const old=p.room;
+ const destination=chooseNPCRoom(p);
+
+ if(destination!==old){
+  p.room=destination;
+  G.tick++;
+  recordLocation(p);
+
+  remember(p,{
+   type:"movement",
+   room:destination,
+   description:"Me desplacé a "+roomName(destination)
+  });
+
+  p.lastRoom=old;
+  p.lastAction="movement";
+ }
+}
+
+function npcDoTask(p){
+ if(!p.alive)return;
+
+ const task=p.tasks.find(t=>
+  !t.done&&taskData(t.id).room===p.room
+ );
+
+ if(!task)return;
+
+ const data=taskData(task.id);
+ task.progress++;
+ G.tick++;
+
+ remember(p,{
+  type:"task",
+  room:p.room,
+  description:"Realicé una tarea en "+roomName(p.room)
+ });
+
+ p.lastAction="task";
+
+ if(task.progress>=data.steps){
+  task.done=true;
+  p.completedTasks.push(task.id);
+ }
+}
+
+function npcObserve(p){
+ if(!p.alive)return;
+
+ const others=occupants(p.room).filter(x=>x.id!==p.id);
+
+ others.forEach(target=>{
+  remember(p,{
+   type:"sighting",
+   target:target.id,
+   room:p.room,
+   description:"Vi al PERSONAJE "+target.id+
+    " en "+roomName(p.room)
+  });
+ });
+}
+
+function npcSuspicionUpdate(p){
+ if(!p.alive)return;
+
+ // Los NPC actualizan sus sospechas solo con sus propios recuerdos.
+ p.memory.forEach(m=>{
+  if(m.type==="murderWitness"){
+   p.suspicion[m.target]=Math.min(
+    100,(p.suspicion[m.target]||0)+35
+   );
+  }
+ });
+
+ Object.keys(p.suspicion).forEach(id=>{
+  p.suspicion[id]=Math.max(0,p.suspicion[id]-.5);
+ });
+}
+
+function npcTurn(p){
+ if(!p.alive||G.gameOver||G.meetingActive)return;
+
+ // Los personajes se desplazan en cada turno.
+ npcMove(p);
+
+ if(G.gameOver||G.meetingActive)return;
+
+ // Observan a quienes encuentran.
+ npcObserve(p);
+
+ // Realizan tareas si han llegado al lugar adecuado.
+ if(Math.random()<.75){
+  npcDoTask(p);
+ }
+
+ npcSuspicionUpdate(p);
+
+ // Kira intenta asesinar si comparte habitación con alguien.
+ if(p.role==="Kira"){
+  const victims=occupants(p.room).filter(x=>x.id!==p.id);
+
+  if(victims.length&&Math.random()<.19){
+   const victim=rand(victims);
+   murder(victim,p);
+   return;
+  }
+ }
+}
+
+/* FINAL DE TURNO: SE MUEVEN LOS NPC Y TAMBIÉN EL JUGADOR */
+
+function endTurn(){
+ if(!G||G.gameOver){
+  notify("La partida ha terminado.");
+  return;
+ }
+
+ if(G.meetingActive){
+  notify("Primero debes resolver o cerrar la reunión.");
+  return;
+ }
+
+ if(G.turnProcessing){
+  notify("El turno ya está terminando.");
+  return;
+ }
+
+ G.turnProcessing=true;
+ G.actions=0;
+ G.phase="npc";
+
+ addLog("PERSONAJE 1 ha terminado su turno.");
+ $("turnMessage").textContent="Los personajes están actuando...";
+ render();
+
+ setTimeout(runNPCTurns,250);
+}
+
+function runNPCTurns(){
+ if(!G||G.gameOver)return;
+
+ const npcs=shuffle(alive().filter(p=>p.id!=="1"));
+
+ for(const npc of npcs){
+  if(G.gameOver||G.meetingActive)break;
+  npcTurn(npc);
+ }
+
+ if(G.gameOver)return;
+
+ // Si aparece una reunión, el avance se detiene.
+ if(G.meetingActive){
+  G.turnProcessing=false;
+  render();
+  return;
+ }
+
+ // EL JUGADOR TAMBIÉN CAMBIA DE HABITACIÓN AUTOMÁTICAMENTE.
+ movePlayerAtEndOfTurn();
+
+ if(G.gameOver)return;
+
+ nextDay();
+}
+
+function movePlayerAtEndOfTurn(){
+ const me=currentPlayer();
+ if(!me||!me.alive)return;
+
+ const oldRoom=me.room;
+
+ // Nunca se queda en la misma habitación si hay otras disponibles.
+ const options=ROOMS.filter(r=>r.id!==oldRoom);
+ const destination=rand(options).id;
+
+ me.room=destination;
+ G.tick++;
+
+ recordLocation(me);
+
+ remember(me,{
+  type:"movement",
+  room:destination,
+  description:"Me trasladé automáticamente a "+roomName(destination)
+ });
+
+ addLog(
+  "PERSONAJE 1 se trasladó automáticamente de "+
+  roomName(oldRoom)+" a "+roomName(destination)+"."
+ );
+
+ $("movementInfo").textContent=
+  "Traslado automático: "+roomName(oldRoom)+" → "+roomName(destination);
+}
+
+function nextDay(){
+ if(G.gameOver)return;
+
+ G.day++;
+ G.tick=0;
+ G.actions=3;
+ G.meetingCalledToday=false;
+ G.turnProcessing=false;
+ G.phase="player";
+
+ addLog("Comienza el día "+G.day+". Todos los personajes pueden actuar de nuevo.");
+
+ render();
+}
+
+/* FINAL DE PARTIDA */
+
+function finish(message){
+ if(G.gameOver)return;
+
+ G.gameOver=true;
+ G.meetingActive=false;
+ G.turnProcessing=false;
+
+ $("meeting").style.display="none";
+
+ const results=G.people.map(p=>
+  "PERSONAJE "+p.id+": "+
+  (p.role==="Kira"?"KIRA":p.role==="L"?"L":"INVESTIGADOR")
+ ).join("\n");
+
+ const overlay=document.createElement("div");
+
+ overlay.style.cssText=
+  "position:fixed;inset:0;z-index:100;background:#080c13f5;display:flex;align-items:center;justify-content:center;padding:15px;overflow:auto";
+
+ overlay.innerHTML=
+  "<div class='role-card'>"+
+  "<h2>FIN DE LA PARTIDA</h2>"+
+  "<h3>"+escapeHTML(message)+"</h3>"+
+  "<p class='muted'>Los roles secretos se revelan ahora:</p>"+
+  "<div style='text-align:left;line-height:1.9'>"+
+  results.split("\n").map(escapeHTML).join("<br>")+
+  "</div><br>"+
+  "<button class='primary' onclick='location.reload()'>NUEVA PARTIDA</button>"+
+  "</div>";
+
+ document.body.appendChild(overlay);
+}
+</script>
+</body>
+</html>
